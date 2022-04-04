@@ -1,4 +1,4 @@
-apiVersion: app/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
@@ -12,7 +12,7 @@ spec:
       labels:
         app: app
     spec:
-      container:
+      containers:
         - name: app
           image: pedroimpulcetto/k3s:latest
           ports:

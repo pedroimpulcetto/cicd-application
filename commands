@@ -1,0 +1,3 @@
+
+
+sudo kubectl expose -f cicd-application/.k3s/deployment.yaml --type=LoadBalancer --name=app-lb

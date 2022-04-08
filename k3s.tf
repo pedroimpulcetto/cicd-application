@@ -13,17 +13,19 @@ resource "google_compute_firewall" "k3s-firewall" {
   network = "default"
   allow {
     protocol = "tcp"
-    ports    = ["6443"]
+    ports    = ["5000"]
   }
-  target_tags = ["k3s"]
-  source_tags = ["vpc-network"]
+  target_tags   = ["all"]
+  source_tags   = ["default"]
+  source_ranges = ["0.0.0.0/0"]
 }
 
 
 resource "google_compute_instance" "k3s_master_instance" {
-  name         = "k3s-master"
-  machine_type = "e2-micro"
-  tags         = ["k3s", "k3s-master"]
+  name           = "k3s-master"
+  machine_type   = "e2-micro"
+  tags           = ["k3s-firewall", "http-server", "https-server"]
+  can_ip_forward = true
 
   boot_disk {
     initialize_params {
@@ -31,9 +33,10 @@ resource "google_compute_instance" "k3s_master_instance" {
     }
   }
 
+  metadata_startup_script = "sudo apt-get update"
+
   network_interface {
     network = "default"
-
     access_config {}
   }
 
@@ -47,14 +50,35 @@ resource "google_compute_instance" "k3s_master_instance" {
         EOT
   }
 
+
+  # provisioner "file" {
+  #   source      = "./.k3s"
+  #   destination = ".k3s"
+
+  #   connection {
+  #     type        = "ssh"
+  #     user        = "root"
+  #     host        = google_compute_instance.k3s_master_instance.network_interface.0.access_config.0.nat_ip
+  #     private_key = file("~/.ssh/google_compute_engine")
+  #   }
+  # }
+
+  provisioner "local-exec" {
+    command = <<EOT
+            sudo apt-get install git -y || git clone https://github.com/pedroimpulcetto/cicd-application.git
+        EOT
+  }
+
+
+
+  provisioner "local-exec" {
+    command = <<EOT
+            sudo kubectl apply -f ~/cicd-application/.k3s/deployment.yaml || sudo kubectl apply -f ~/cicd-application/.k3s/services.yaml || sudo kubectl apply -f ~/cicd-application/.k3s/ingress.yaml
+        EOT
+  }
+
+
   depends_on = [
     google_compute_firewall.k3s-firewall,
   ]
-}
-
-resource "google_compute_network" "vpc_network" {
-  project                 = "youtube-pedroimpulcetto"
-  name                    = "vpc-network"
-  auto_create_subnetworks = true
-  mtu                     = 1460
 }
